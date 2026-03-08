@@ -106,10 +106,14 @@ export async function findGiftBySlugOrId(slugOrId: string): Promise<GiftWithImag
       include: { images: true },
     });
   } catch {
-    return prisma.gift.findUnique({
-      where: { id: slugOrId },
-      include: { images: true },
-    });
+    try {
+      return await prisma.gift.findUnique({
+        where: { id: slugOrId },
+        include: { images: true },
+      });
+    } catch {
+      return null;
+    }
   }
 }
 
