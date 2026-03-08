@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AssetProvider {
+  local_dev
+  supabase
+}
+
+enum AssetStatus {
+  uploaded
+  attached
+  pending_delete
+  deleted
+  failed
+}
+
+model Gift {
+  id            String      @id @default(cuid())
+  slug          String      @unique
+  templateId    String
+  config        Json
+  message       String
+  senderName    String?
+  recipientName String?
+  assets        Asset[]
+  images        GiftImage[]
+  views         GiftViewEvent[]
+  viewCount     Int         @default(0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([createdAt])
+}
+
+model Asset {
+  id        String       @id
+  provider  AssetProvider
+  objectPath String      @unique
+  publicUrl String
+  mimeType  String
+  sizeBytes Int
+  status    AssetStatus  @default(uploaded)
+  giftId    String?
+  gift      Gift?        @relation(fields: [giftId], references: [id], onDelete: SetNull)
+  image     GiftImage?
+  expiresAt DateTime?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([status, expiresAt])
+  @@index([giftId])
+}
+
+model GiftImage {
+  id        String  @id @default(cuid())
+  assetId   String  @unique
+  asset     Asset   @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  giftId    String
+  gift      Gift    @relation(fields: [giftId], references: [id], onDelete: Cascade)
+  publicUrl String
+  objectPath String
+  label     String?
+  position  Json?
+
+  @@index([giftId])
+}
+
+model GiftViewEvent {
+  id        String   @id @default(cuid())
+  giftId    String
+  gift      Gift     @relation(fields: [giftId], references: [id], onDelete: Cascade)
+  viewerId  String
+  createdAt DateTime @default(now())
+
+  @@unique([giftId, viewerId])
+  @@index([giftId, createdAt])
+}
