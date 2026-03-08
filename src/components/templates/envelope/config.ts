@@ -17,6 +17,8 @@ export const envelopeTemplate: GiftTemplate = {
     },
     decorations: [{ type: "confetti", variant: "colorful" }],
     animation: { speed: "normal", style: "unfold" },
+    floatingMessages: [],
+    effects: { fallingMedia: true, clickBurst: "hearts" },
   },
   customizableFields: [
     { key: "colors.primary", label: "Màu phong bì", type: "color" },

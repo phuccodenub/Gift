@@ -6,6 +6,9 @@ export interface GiftConfig {
     style: string;
   };
   message?: GiftMessageConfig;
+  audio?: GiftAudioConfig;
+  floatingMessages?: string[];
+  effects?: GiftEffectsConfig;
   // Legacy keys are kept for backward compatibility during migration.
   colors: {
     primary: string;
@@ -22,6 +25,18 @@ export interface GiftTheme {
   secondary: string;
   accent: string;
   background: string;
+}
+
+export interface GiftAudioConfig {
+  assetId: string;
+  publicUrl: string;
+  objectPath: string;
+  mimeType: string;
+}
+
+export interface GiftEffectsConfig {
+  fallingMedia?: boolean;
+  clickBurst?: "hearts";
 }
 
 export interface GiftMessageConfig {

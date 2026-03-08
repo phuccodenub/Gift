@@ -9,6 +9,7 @@ import ShareStep from "@/components/builder/ShareStep";
 import TemplateSelector from "@/components/builder/TemplateSelector";
 import CustomizationPanel from "@/components/builder/CustomizationPanel";
 import MessageEditor from "@/components/builder/MessageEditor";
+import AudioUploader from "@/components/builder/AudioUploader";
 import ImageUploader from "@/components/builder/ImageUploader";
 import LivePreview from "@/components/builder/LivePreview";
 import { SceneEditor } from "@/components/builder/scene-editor";
@@ -58,17 +59,21 @@ export default function CreatePage() {
     selectedTemplate,
     selectedTemplateId,
     message,
+    floatingMessagesInput,
     senderName,
     recipientName,
     images,
+    audioTrack,
     customValues,
     giftData,
     currentStep,
     canProceed,
     setMessage,
+    setFloatingMessagesInput,
     setSenderName,
     setRecipientName,
     setImages,
+    setAudioTrack,
     setSceneElements,
     handleSelectTemplate,
     handleCustomFieldChange,
@@ -79,7 +84,8 @@ export default function CreatePage() {
 
   const isSceneEditor =
     selectedTemplate?.editorSchema &&
-    (selectedTemplate.editorSchema as { mode?: string }).mode === "scene-editor-2.5d";
+    (selectedTemplate.editorSchema as { mode?: string }).mode === "scene-editor-2.5d" &&
+    selectedTemplateId !== "flower-tree";
 
   return (
     <div className="min-h-screen px-4 pb-10 pt-4 sm:px-6 lg:px-8">
@@ -151,6 +157,8 @@ export default function CreatePage() {
                     <MessageEditor
                       value={message}
                       onChange={setMessage}
+                      floatingMessagesInput={floatingMessagesInput}
+                      onFloatingMessagesChange={setFloatingMessagesInput}
                       senderName={senderName}
                       recipientName={recipientName}
                       onSenderChange={setSenderName}
@@ -158,6 +166,7 @@ export default function CreatePage() {
                     />
 
                     <ImageUploader images={images} onImagesChange={setImages} />
+                    <AudioUploader audio={audioTrack} onAudioChange={setAudioTrack} />
 
                     {isSceneEditor && (
                       <SceneEditor

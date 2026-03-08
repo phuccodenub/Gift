@@ -41,7 +41,8 @@ export function isAllowedAssetUrl(url: string): boolean {
   if (
     trimmed.startsWith("/uploads/") ||
     trimmed.startsWith("/assets/") ||
-    trimmed.startsWith("data:image/")
+    trimmed.startsWith("data:image/") ||
+    trimmed.startsWith("data:audio/")
   ) {
     return true;
   }

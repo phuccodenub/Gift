@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getTemplate } from "@/components/templates/registry";
 import type { GiftData } from "@/types/gift";
+import { GiftExperienceShell } from "@/components/viewer/GiftExperienceShell";
 import { SharePanel } from "@/components/viewer/SharePanel";
 
 interface GiftViewerProps {
@@ -69,7 +70,9 @@ export function GiftViewer({ gift }: GiftViewerProps) {
 
   return (
     <div className="relative">
-      <TemplateComponent gift={gift} />
+      <GiftExperienceShell gift={gift}>
+        <TemplateComponent gift={gift} />
+      </GiftExperienceShell>
 
       <motion.button
         className="fixed right-4 top-4 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 shadow-lg backdrop-blur-sm"

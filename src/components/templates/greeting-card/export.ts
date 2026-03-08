@@ -1,6 +1,7 @@
 import type { GiftData } from "@/types/gift";
 import { wrapExportHTML } from "@/lib/export-html";
 import { createDeterministicRandom, randomInRange } from "@/lib/deterministic";
+import { shouldUseLegacyImageLayout } from "@/lib/gift-effects";
 
 export function generateGreetingCardExportHTML(gift: GiftData): string {
   const { colors } = gift.config;
@@ -8,6 +9,7 @@ export function generateGreetingCardExportHTML(gift: GiftData): string {
   const s = colors.secondary;
   const a = colors.accent || colors.primary;
   const bg = colors.background || "#fdf2f8";
+  const showLegacyImages = shouldUseLegacyImageLayout(gift);
 
   const css = `
 *{margin:0;padding:0;box-sizing:border-box}
@@ -58,7 +60,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;display:flex;a
 .images img{width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.4);box-shadow:0 2px 8px rgba(0,0,0,0.15)}
 `;
 
-  const imagesHTML = gift.images.length
+  const imagesHTML = showLegacyImages && gift.images.length
     ? `<div class="images">${gift.images.slice(0, 3).map((img) => `<img src="${img.publicUrl || img.url}" alt="">`).join("")}</div>`
     : "";
 
@@ -141,5 +143,5 @@ function spawnConfetti(){
     ? `Thiệp chúc mừng ${gift.recipientName}`
     : "Thiệp chúc mừng 8/3";
 
-  return wrapExportHTML(title, css, bodyHTML, js);
+  return wrapExportHTML(title, css, bodyHTML, js, gift);
 }

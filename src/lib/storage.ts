@@ -23,10 +23,30 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_BUCKET = process.env.SUPABASE_BUCKET || "gift-assets";
 
-function ensureSafeExt(filename: string): string {
-  const ext = filename.split(".").pop()?.toLowerCase() ?? "jpg";
-  if (["jpg", "jpeg", "png", "webp"].includes(ext)) {
+function normalizeAssetMimeType(mimeType: string | undefined): string {
+  const normalized = mimeType?.trim().toLowerCase() ?? "";
+  if (normalized === "image/jpg") return "image/jpeg";
+  if (normalized === "audio/mp3") return "audio/mpeg";
+  return normalized;
+}
+
+function getExtFromMimeType(mimeType: string | undefined): string | undefined {
+  const normalized = normalizeAssetMimeType(mimeType);
+  if (normalized === "image/jpeg") return "jpg";
+  if (normalized === "image/png") return "png";
+  if (normalized === "image/webp") return "webp";
+  if (normalized === "audio/mpeg") return "mp3";
+  return undefined;
+}
+
+function ensureSafeExt(filename: string, mimeType?: string): string {
+  const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+  if (["jpg", "jpeg", "png", "webp", "mp3"].includes(ext)) {
     return ext;
+  }
+  const extFromMimeType = getExtFromMimeType(mimeType);
+  if (extFromMimeType) {
+    return extFromMimeType;
   }
   return "jpg";
 }
@@ -35,6 +55,7 @@ function getMimeFromExt(value: string): string {
   const ext = value.split(".").pop()?.toLowerCase() ?? "jpg";
   if (ext === "png") return "image/png";
   if (ext === "webp") return "image/webp";
+  if (ext === "mp3") return "audio/mpeg";
   return "image/jpeg";
 }
 
@@ -100,12 +121,12 @@ export function resolveObjectPathFromUrl(url: string): string | null {
   return null;
 }
 
-export async function uploadImage(file: File): Promise<UploadAssetResponse> {
-  const ext = ensureSafeExt(file.name);
+export async function uploadAsset(file: File): Promise<UploadAssetResponse> {
+  const mimeType = normalizeAssetMimeType(file.type) || getMimeFromExt(file.name);
+  const ext = ensureSafeExt(file.name, mimeType);
   const assetId = randomUUID();
   const objectPath = `${assetId}.${ext}`;
   const buffer = Buffer.from(await file.arrayBuffer());
-  const mimeType = file.type || getMimeFromExt(objectPath);
   const sizeBytes = buffer.byteLength;
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
@@ -150,7 +171,11 @@ export async function uploadImage(file: File): Promise<UploadAssetResponse> {
   };
 }
 
-export async function deleteImage(asset: { objectPath?: string; publicUrl?: string }): Promise<void> {
+export async function uploadImage(file: File): Promise<UploadAssetResponse> {
+  return uploadAsset(file);
+}
+
+export async function deleteAsset(asset: { objectPath?: string; publicUrl?: string }): Promise<void> {
   const objectPath = asset.objectPath?.trim();
   if (!objectPath) return;
 
@@ -164,12 +189,19 @@ export async function deleteImage(asset: { objectPath?: string; publicUrl?: stri
   await fs.unlink(filepath).catch(() => {});
 }
 
-export async function imageToBase64(url: string): Promise<string> {
+export async function deleteImage(asset: { objectPath?: string; publicUrl?: string }): Promise<void> {
+  await deleteAsset(asset);
+}
+
+export async function assetToDataUri(
+  url: string,
+  expectedContentPrefix?: "image/" | "audio/",
+): Promise<string> {
   if (!isAllowedAssetUrl(url)) {
     throw new Error("Asset URL is not allowed for export.");
   }
 
-  if (url.startsWith("data:image/")) {
+  if (url.startsWith("data:image/") || url.startsWith("data:audio/")) {
     return url;
   }
 
@@ -178,6 +210,16 @@ export async function imageToBase64(url: string): Promise<string> {
     const filepath = path.join(process.cwd(), "public", relativePath);
     const buffer = await fs.readFile(filepath);
     const mime = getMimeFromExt(url);
+    if (expectedContentPrefix && !mime.startsWith(expectedContentPrefix)) {
+      throw new Error(`Local asset is not ${expectedContentPrefix.slice(0, -1)}.`);
+    }
+    if (
+      !expectedContentPrefix &&
+      !mime.startsWith("image/") &&
+      !mime.startsWith("audio/")
+    ) {
+      throw new Error("Local asset has unsupported content type.");
+    }
     return `data:${mime};base64,${buffer.toString("base64")}`;
   }
 
@@ -190,10 +232,21 @@ export async function imageToBase64(url: string): Promise<string> {
   if (!response.ok) {
     throw new Error(`Cannot fetch asset: ${response.status}`);
   }
-  const contentType = response.headers.get("content-type") ?? "image/jpeg";
-  if (!contentType.startsWith("image/")) {
-    throw new Error("Fetched asset is not an image.");
+  const contentType = response.headers.get("content-type") ?? "application/octet-stream";
+  if (expectedContentPrefix && !contentType.startsWith(expectedContentPrefix)) {
+    throw new Error(`Fetched asset is not ${expectedContentPrefix.slice(0, -1)}.`);
+  }
+  if (!expectedContentPrefix && !contentType.startsWith("image/") && !contentType.startsWith("audio/")) {
+    throw new Error("Fetched asset has unsupported content type.");
   }
   const body = await response.arrayBuffer();
   return `data:${contentType};base64,${Buffer.from(body).toString("base64")}`;
+}
+
+export async function imageToBase64(url: string): Promise<string> {
+  return assetToDataUri(url, "image/");
+}
+
+export async function audioToDataUri(url: string): Promise<string> {
+  return assetToDataUri(url, "audio/");
 }

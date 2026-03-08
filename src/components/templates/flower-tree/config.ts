@@ -17,6 +17,8 @@ export const flowerTreeTemplate: GiftTemplate = {
     },
     decorations: [{ type: "star", variant: "twinkle" }],
     animation: { speed: "normal", style: "grow" },
+    floatingMessages: [],
+    effects: { fallingMedia: true, clickBurst: "hearts" },
   },
   customizableFields: [
     { key: "colors.primary", label: "Màu hoa chính", type: "color" },

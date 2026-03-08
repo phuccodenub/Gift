@@ -16,6 +16,8 @@ export const greetingCardTemplate: GiftTemplate = {
     },
     decorations: [{ type: "heart", variant: "classic" }],
     animation: { speed: "normal", style: "flip" },
+    floatingMessages: [],
+    effects: { fallingMedia: true, clickBurst: "hearts" },
   },
   customizableFields: [
     { key: "colors.primary", label: "Màu thiệp chính", type: "color" },

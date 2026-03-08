@@ -1,5 +1,9 @@
 import { z } from "zod";
 import type { CustomField } from "@/types/gift";
+import {
+  MAX_FLOATING_MESSAGES,
+  MAX_FLOATING_MESSAGE_LENGTH,
+} from "@/lib/gift-effects";
 
 const hexColor = z
   .string()
@@ -33,6 +37,13 @@ const imageSchema = z.object({
   position: positionSchema,
 }).strict();
 
+const audioSchema = z.object({
+  assetId: z.string().trim().min(8),
+  publicUrl: z.string().trim().min(1),
+  objectPath: z.string().trim().min(1),
+  mimeType: z.enum(["audio/mpeg", "audio/mp3"]),
+}).strict();
+
 const giftConfigSchema = z.object({
   theme: z
     .object({
@@ -55,6 +66,17 @@ const giftConfigSchema = z.object({
     speed: z.enum(["slow", "normal", "fast"]).default("normal"),
     style: z.string().min(1).max(40),
   }),
+  audio: audioSchema.optional(),
+  floatingMessages: z
+    .array(safeText(MAX_FLOATING_MESSAGE_LENGTH).pipe(z.string().min(1)))
+    .max(MAX_FLOATING_MESSAGES)
+    .optional(),
+  effects: z
+    .object({
+      fallingMedia: z.boolean().optional(),
+      clickBurst: z.literal("hearts").optional(),
+    })
+    .optional(),
   scene: z
     .object({
       elements: z

@@ -17,6 +17,8 @@ export const bouquetTemplate: GiftTemplate = {
     },
     decorations: [{ type: "petal", variant: "rose" }],
     animation: { speed: "normal", style: "bloom" },
+    floatingMessages: [],
+    effects: { fallingMedia: true, clickBurst: "hearts" },
   },
   customizableFields: [
     { key: "colors.primary", label: "Màu hoa chính", type: "color" },

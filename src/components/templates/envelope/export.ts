@@ -1,12 +1,14 @@
 import type { GiftData } from "@/types/gift";
 import { wrapExportHTML } from "@/lib/export-html";
 import { createDeterministicRandom, randomInRange } from "@/lib/deterministic";
+import { shouldUseLegacyImageLayout } from "@/lib/gift-effects";
 
 export function generateEnvelopeExportHTML(gift: GiftData): string {
   const { colors } = gift.config;
   const p = colors.primary;
   const s = colors.secondary;
   const bg = colors.background || "#1a1a2e";
+  const showLegacyImages = shouldUseLegacyImageLayout(gift);
 
   const css = `
 *{margin:0;padding:0;box-sizing:border-box}
@@ -56,7 +58,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;display:flex;a
 .images img{width:64px;height:64px;border-radius:12px;object-fit:cover;box-shadow:0 2px 12px rgba(0,0,0,0.15)}
 `;
 
-  const imagesHTML = gift.images.length
+  const imagesHTML = showLegacyImages && gift.images.length
     ? `<div class="images">${gift.images.map((img) => `<img src="${img.publicUrl || img.url}" alt="">`).join("")}</div>`
     : "";
 
@@ -138,5 +140,5 @@ function closeLetter(){
     ? `Thư gửi ${gift.recipientName}`
     : "Phong bì yêu thương";
 
-  return wrapExportHTML(title, css, bodyHTML, js);
+  return wrapExportHTML(title, css, bodyHTML, js, gift);
 }

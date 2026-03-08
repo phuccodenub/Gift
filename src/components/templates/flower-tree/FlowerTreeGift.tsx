@@ -4,6 +4,10 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { GiftViewerProps } from "@/types/gift";
 import { createDeterministicRandom, randomInRange } from "@/lib/deterministic";
+import {
+  shouldUseLegacyFlowerTreeScene,
+  shouldUseLegacyImageLayout,
+} from "@/lib/gift-effects";
 import { getFlowerTreeScene } from "@/lib/flower-tree-scene";
 
 /* ── Shooting star ── */
@@ -151,6 +155,8 @@ function TreeBranch({ x, y, angle, length, delay }: { x: number; y: number; angl
 export function FlowerTreeGift({ gift, isPreview }: GiftViewerProps) {
   const [stage, setStage] = useState<"intro" | "tree" | "message">(isPreview ? "tree" : "intro");
   const { colors } = gift.config;
+  const showLegacyImages = shouldUseLegacyImageLayout(gift);
+  const showLegacyScene = shouldUseLegacyFlowerTreeScene(gift);
 
   const flowerPositions = useMemo(() => [
     { x: 160, y: 25, size: 44, color: colors.primary },
@@ -308,7 +314,8 @@ export function FlowerTreeGift({ gift, isPreview }: GiftViewerProps) {
               ))}
 
               {/* Photo bubbles */}
-              {sceneImageElements.length > 0
+              {showLegacyImages
+                ? sceneImageElements.length > 0
                 ? sceneImageElements.map((element, index) => {
                     const image = element.assetRef ? imageByAssetId.get(element.assetRef) : undefined;
                     const src = image?.publicUrl || image?.url;
@@ -331,9 +338,10 @@ export function FlowerTreeGift({ gift, isPreview }: GiftViewerProps) {
                       width={68} height={68} delay={2.0 + i * 0.2}
                       color={colors.primary} shape="circle" zIndex={20 + i}
                     />
-                  ))}
+                  ))
+                : null}
 
-              {sceneTextElements.map((element, index) => (
+              {showLegacyScene ? sceneTextElements.map((element, index) => (
                 <motion.div
                   key={element.id}
                   className="absolute rounded-2xl border border-white/30 bg-white/10 px-3 py-2 text-xs text-white shadow-lg backdrop-blur-sm"
@@ -349,7 +357,7 @@ export function FlowerTreeGift({ gift, isPreview }: GiftViewerProps) {
                 >
                   {element.content}
                 </motion.div>
-              ))}
+              )) : null}
 
               {/* ground glow */}
               <div

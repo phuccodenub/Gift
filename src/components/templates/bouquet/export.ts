@@ -1,6 +1,22 @@
 import type { GiftData } from "@/types/gift";
 import { wrapExportHTML } from "@/lib/export-html";
 import { createDeterministicRandom, randomInRange } from "@/lib/deterministic";
+import { shouldUseLegacyImageLayout } from "@/lib/gift-effects";
+import {
+  BOUQUET_LAYOUT,
+  BOUQUET_PETAL_ANGLES,
+  getBouquetCalyxHeight,
+  getBouquetCalyxWidth,
+  getBouquetHeadTop,
+  getBouquetInnerPetalHeight,
+  getBouquetInnerPetalWidth,
+  getBouquetLeafHeight,
+  getBouquetLeafWidth,
+  getBouquetOuterPetalHeight,
+  getBouquetOuterPetalWidth,
+  getBouquetStemSpecs,
+  getBouquetStemWidth,
+} from "./scene";
 
 export function generateBouquetExportHTML(gift: GiftData): string {
   const { colors } = gift.config;
@@ -8,10 +24,14 @@ export function generateBouquetExportHTML(gift: GiftData): string {
   const s = colors.secondary;
   const a = colors.accent || colors.primary;
   const bg = colors.background || "#fdf2f8";
+  const showLegacyImages = shouldUseLegacyImageLayout(gift);
+  const escapedRecipientName = gift.recipientName ? escapeExportText(gift.recipientName) : "";
+  const escapedSenderName = gift.senderName ? escapeExportText(gift.senderName) : "";
+  const escapedMessage = escapeExportText(gift.message);
 
   const css = `
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Segoe UI',system-ui,sans-serif;overflow-x:hidden;min-height:100vh;
+body{font-family:'DM Sans','Segoe UI',system-ui,sans-serif;overflow-x:hidden;min-height:100vh;
   background:radial-gradient(ellipse at 50% 0%,${bg},transparent 60%),radial-gradient(circle at 20% 80%,${p}18,transparent 40%),radial-gradient(circle at 80% 20%,${s}14,transparent 30%),linear-gradient(170deg,#fdf2f8,${bg} 50%,#fce7f3)}
 .scene{display:flex;align-items:center;justify-content:center;min-height:100vh;position:relative;overflow:hidden}
 .mountains{position:absolute;bottom:0;left:0;right:0;height:30%;pointer-events:none;z-index:0}
@@ -27,6 +47,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;overflow-x:hidden;min-height:10
 .gift-icon{font-size:80px;animation:float 3s ease-in-out infinite}
 @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
 h1{font-size:28px;font-weight:700;color:${p};text-shadow:0 2px 12px ${p}22}
+.bouquet-title{font-size:30px;font-weight:700;letter-spacing:0.04em;color:${p};text-shadow:0 0 20px ${p}44}
 .subtitle{font-size:14px;color:#9b5a6a;max-width:300px;line-height:1.6}
 .btn{position:relative;overflow:hidden;background:linear-gradient(135deg,${p},${s});color:#fff;border:none;padding:14px 32px;
   border-radius:50px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 8px 30px ${p}44;transition:transform 0.2s}
@@ -34,74 +55,171 @@ h1{font-size:28px;font-weight:700;color:${p};text-shadow:0 2px 12px ${p}22}
 .btn::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent);
   animation:shimmer 2s infinite;border-radius:50px}
 @keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
-.bouquet{position:relative;width:280px;height:300px;margin:0 auto}
-.flower{position:absolute;transform:scale(0);transition:transform 0.6s cubic-bezier(0.34,1.56,0.64,1)}
-.flower.show{transform:scale(1)}
-.flower-petal{position:absolute;left:50%;top:50%;border-radius:50%;transform-origin:50% 100%;filter:saturate(1.3)}
-.flower-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border-radius:50%;
-  background:radial-gradient(circle,#fde68a,#f59e0b);box-shadow:0 0 10px #f59e0b55;z-index:1}
-.flower-glow{position:absolute;border-radius:50%;filter:blur(6px);pointer-events:none}
-.stem{position:absolute;bottom:0;width:4px;border-radius:2px;background:linear-gradient(to top,#16a34a,#4ade80);
-  transform-origin:bottom;transform:scaleY(0);transition:transform 0.5s ease}
-.stem.show{transform:scaleY(1)}
-.leaf{position:absolute;width:30px;height:16px;background:linear-gradient(135deg,#4ade80,#16a34a);
-  transform:scale(0);transition:transform 0.4s ease 0.8s}
-.leaf.show{transform:scale(1) rotate(var(--r))}
-.leaf.left{border-radius:0 80% 0 80%}
-.leaf.right{border-radius:80% 0 80% 0}
-.wrap{position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:120px;height:70px;
-  background:linear-gradient(135deg,${a},${s});clip-path:polygon(10% 0,90% 0,100% 100%,0 100%);
-  border-radius:0 0 40px 40px;transform:translateX(-50%) scaleY(0);transition:transform 0.4s ease;
-  box-shadow:0 4px 12px rgba(0,0,0,0.12)}
-.wrap.show{transform:translateX(-50%) scaleY(1)}
-.msg-card{position:relative;background:linear-gradient(180deg,#fffbf5,#fef7ed);border-radius:24px;padding:32px;
-  max-width:400px;width:90%;box-shadow:inset 0 2px 0 rgba(255,255,255,0.5),0 20px 50px -15px rgba(0,0,0,0.15);
-  border:2px solid ${p}22;transform:translateY(40px) rotate(1deg);opacity:0;transition:all 0.6s ease}
-.msg-card.show{transform:translateY(0) rotate(0);opacity:1}
-.msg-tape{position:absolute;width:32px;height:32px;border:1px dashed ${p}44;background:${p}15;border-radius:3px}
-.msg-tape.tl{top:-6px;left:-6px;transform:rotate(-15deg)}
-.msg-tape.br{bottom:-6px;right:-6px;transform:rotate(15deg)}
-.msg-to{font-size:15px;color:${p};margin-bottom:8px;font-style:italic;font-weight:500}
-.msg-text{font-size:18px;line-height:1.85;color:#2a1a2e;white-space:pre-wrap}
-.msg-from{text-align:right;font-size:15px;color:${p};font-style:italic;margin-top:24px;font-weight:500}
-.back-link{color:${p}aa;font-size:14px;cursor:pointer;margin-top:16px;border:none;background:none;transition:color 0.2s}
-.back-link:hover{color:${p}}
-.images{display:flex;gap:12px;margin-top:8px}
-.images img{width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid ${p};box-shadow:0 2px 12px rgba(0,0,0,0.12)}
+  .bouquet{position:relative;width:${BOUQUET_LAYOUT.sceneWidth}px;height:${BOUQUET_LAYOUT.sceneHeight}px;margin:0 auto}
+  .bouquet-glow{position:absolute;left:50%;top:${BOUQUET_LAYOUT.glowTop}px;width:${BOUQUET_LAYOUT.glowWidth}px;height:${BOUQUET_LAYOUT.glowHeight}px;transform:translateX(-50%);border-radius:50%;
+    background:radial-gradient(ellipse,${p}18,transparent);filter:blur(28px);pointer-events:none}
+  .stem-unit{position:absolute;left:50%;bottom:${BOUQUET_LAYOUT.stemOriginBottom}px;width:0;transform-origin:bottom center}
+  .flower{position:absolute;left:50%;transform:translateX(-50%) rotate(var(--counter-rotate)) scale(0);transform-origin:center center;
+    transition:transform 0.6s cubic-bezier(0.34,1.56,0.64,1),opacity 0.45s ease;opacity:0}
+  .flower.show{transform:translateX(-50%) rotate(var(--counter-rotate)) scale(1);opacity:1}
+  .flower-petal{position:absolute;left:50%;top:50%;border-radius:55% 55% 44% 44%/72% 72% 34% 34%;transform-origin:50% 100%}
+  .flower-petal.inner{border-radius:60% 60% 45% 45%/70% 70% 36% 36%;opacity:0.55}
+  .flower-calyx{position:absolute;left:50%;z-index:10;transform:translateX(-50%);border-radius:50% 50% 42% 42%/74% 74% 30% 30%;
+    background:linear-gradient(180deg,#16a34a,#22c55e);box-shadow:0 0 8px rgba(34,197,94,0.28)}
+  .flower-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border-radius:50%;
+    background:radial-gradient(circle,#fff4b2 0%,#fde68a 44%,#f59e0b 100%);box-shadow:0 0 12px #f59e0b66;z-index:1}
+  .stem{position:relative;left:50%;transform:translateX(-50%) scaleY(0);border-radius:999px;background:linear-gradient(to top,#16a34a,#4ade80);
+    transform-origin:bottom center;transition:transform 0.5s ease;box-shadow:0 0 6px #4ade8033;z-index:1}
+  .stem.show{transform:translateX(-50%) scaleY(1)}
+  .leaf{position:absolute;width:30px;height:16px;background:linear-gradient(135deg,#4ade80,#16a34a);
+    transform:scale(0);transition:transform 0.4s ease 0.8s;box-shadow:0 1px 4px #16a34a33}
+  .leaf.show{transform:scale(1) rotate(var(--r))}
+  .leaf.left{border-radius:80% 0 80% 0}
+  .leaf.right{border-radius:0 80% 0 80%}
+  .wrap{position:absolute;bottom:0;left:50%;width:228px;height:138px;transform:translateX(-50%) scaleY(0);transition:transform 0.4s ease;
+    transform-origin:top center}
+  .wrap.show{transform:translateX(-50%) scaleY(1)}
+  .wrap svg{display:block;filter:drop-shadow(0 4px 12px rgba(0,0,0,0.12))}
+  .wrap-bow{position:absolute;inset:auto 0 0 0;top:-18px;display:flex;justify-content:center}
+  .wrap-bow-inner{display:flex;align-items:flex-end;gap:4px}
+  .wrap-knot{width:14px;height:14px;border-radius:50%;background:${p};box-shadow:0 0 8px ${p}44}
+  .wrap-loop{width:32px;height:18px}
+  .wrap-loop.left{background:linear-gradient(135deg,${p},${p}cc);border-radius:60% 60% 16% 52%;transform:rotate(-28deg)}
+  .wrap-loop.right{background:linear-gradient(135deg,${p}cc,${p});border-radius:60% 60% 52% 16%;transform:rotate(28deg)}
+  .wrap-ribbons{position:absolute;left:50%;bottom:-20px;display:flex;gap:12px;transform:translateX(-50%)}
+  .wrap-ribbon{width:4px;border-radius:999px;background:linear-gradient(180deg,${p}88,${p}14)}
+  .wrap-ribbon.left{height:28px;transform:rotate(-8deg)}
+  .wrap-ribbon.right{height:24px;transform:rotate(10deg)}
+  .message-scene{width:100%;max-width:512px;gap:0;z-index:20;padding-left:16px;padding-right:16px}
+  .msg-emojis{display:flex;gap:12px;margin-bottom:16px}
+  .msg-emoji{font-size:24px;display:inline-block;animation:msgBob 2.5s ease-in-out infinite}
+  .msg-emoji:nth-child(2){animation-delay:0.25s}
+  .msg-emoji:nth-child(3){animation-delay:0.5s}
+  .msg-emoji:nth-child(4){animation-delay:0.75s}
+  .msg-emoji:nth-child(5){animation-delay:1s}
+  @keyframes msgBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+  .msg-shell{position:relative;width:100%;overflow:hidden;padding:2.5px;border-radius:28px;
+    transform:translateY(40px) scale(0.92);opacity:0;transition:transform 0.8s cubic-bezier(0.34,1.56,0.64,1),opacity 0.6s ease}
+  .msg-shell.show{transform:translateY(0) scale(1);opacity:1}
+  .msg-shell-border{position:absolute;inset:0;border-radius:28px;background:linear-gradient(135deg,${p}55,${a}44,${p}55)}
+  .msg-card{position:relative;border-radius:26px;padding:40px 32px;background:linear-gradient(180deg,#fffdf8 0%,#fef9f0 50%,#fdf5ea 100%);
+    box-shadow:inset 0 2px 0 rgba(255,255,255,0.9),0 30px 70px -20px ${p}33}
+  .msg-tape{position:absolute;width:32px;height:32px;border:1px dashed ${p}44;background:${p}15;border-radius:3px}
+  .msg-tape.tl{top:-6px;left:-6px;transform:rotate(-15deg)}
+  .msg-tape.br{bottom:-6px;right:-6px;transform:rotate(15deg)}
+  .msg-divider{display:flex;align-items:center;justify-content:center;gap:12px}
+  .msg-divider.top{margin-bottom:24px}
+  .msg-divider.bottom{margin-top:24px}
+  .msg-divider-line{width:48px;height:1.5px;border-radius:999px}
+  .msg-divider-line.left{background:linear-gradient(90deg,transparent,${p}44)}
+  .msg-divider-line.right{background:linear-gradient(90deg,${p}44,transparent)}
+  .msg-divider-icon{font-size:18px;color:${p}}
+  .msg-to{margin-bottom:20px;text-align:center;font-size:20px;line-height:1.2;color:${p};font-style:italic;font-weight:600;font-family:'Cormorant Garamond',Georgia,'Times New Roman',serif}
+  .msg-text{text-align:center;font-size:20px;line-height:2;color:#3d2030;white-space:pre-wrap;font-family:'Cormorant Garamond',Georgia,'Times New Roman',serif}
+  .msg-inline-images{display:flex;justify-content:center;gap:12px;margin-top:32px}
+  .msg-inline-image{width:64px;height:64px;overflow:hidden;border-radius:12px;object-fit:cover;border:2px solid ${p}33;box-shadow:0 12px 24px -12px ${p}66}
+  .msg-from{text-align:right;font-size:18px;line-height:1.2;color:${p};font-style:italic;margin-top:32px;font-weight:600;font-family:'Cormorant Garamond',Georgia,'Times New Roman',serif}
+  .back-link{color:${p};font-size:14px;font-weight:500;cursor:pointer;margin-top:24px;border:none;background:none;transition:color 0.2s,transform 0.2s}
+  .back-link:hover{color:${p}}
+  .back-link:hover{transform:scale(1.05)}
+  .images{display:flex;gap:12px;margin-top:8px}
+  .images img{width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid ${p};box-shadow:0 2px 12px rgba(0,0,0,0.12)}
+  @media (min-width: 768px){
+    .msg-card{padding:48px 40px}
+    .msg-to{font-size:24px}
+    .msg-text{font-size:24px}
+    .msg-from{font-size:20px}
+  }
+  @media (max-width: 640px){
+    .message-scene{max-width:100%}
+    .msg-card{padding:40px 32px}
+    .msg-emojis{margin-bottom:12px}
+    .msg-divider.top{margin-bottom:20px}
+    .msg-divider.bottom{margin-top:20px}
+    .msg-inline-images{margin-top:24px}
+    .msg-from{margin-top:24px}
+  }
 `;
 
-  const imagesHTML = gift.images.length
+  const imagesHTML = showLegacyImages && gift.images.length
     ? `<div class="images">${gift.images
         .slice(0, 4)
         .map((img) => `<img src="${img.publicUrl || img.url}" alt="">`)
         .join("")}</div>`
     : "";
+  const messageImagesHTML = showLegacyImages && gift.images.length
+    ? `<div class="msg-inline-images">${gift.images
+        .slice(0, 4)
+        .map((img) => `<img class="msg-inline-image" src="${img.publicUrl || img.url}" alt="">`)
+        .join("")}</div>`
+    : "";
 
-  const flowerPositions = [
-    { x: 105, y: 10, size: 70 },
-    { x: 45, y: 30, size: 55 },
-    { x: 165, y: 30, size: 55 },
-    { x: 12, y: 55, size: 45 },
-    { x: 192, y: 55, size: 45 },
-    { x: 72, y: 45, size: 60 },
-    { x: 132, y: 50, size: 50 },
-  ];
+  const bouquetSpecs = getBouquetStemSpecs(colors).map((spec) => ({
+    ...spec,
+    delayMs: Math.round(spec.delay * 1000),
+  }));
 
-  const flowersHTML = flowerPositions
-    .map((f, i) => {
-      const c = i % 3 === 0 ? p : i % 3 === 1 ? s : a;
-      const petalsHTML = Array.from({ length: 5 })
+  const flowersHTML = bouquetSpecs
+    .map((f) => {
+      const stemWidth = getBouquetStemWidth(f.headSize);
+      const leafWidth = getBouquetLeafWidth(f.headSize);
+      const leafHeight = getBouquetLeafHeight(f.headSize);
+      const petalsHTML = Array.from(BOUQUET_PETAL_ANGLES)
         .map(
-          (_, j) =>
-            `<div class="flower-petal" style="width:${f.size * 0.45}px;height:${f.size * 0.65}px;background:radial-gradient(ellipse at 50% 30%,${c},${c}cc);transform:translate(-50%,-100%) rotate(${j * 72}deg);box-shadow:inset 0 -4px 8px ${c}88"></div>`,
+          (angle) =>
+            `<div class="flower-petal" style="z-index:20;width:${getBouquetOuterPetalWidth(f.headSize)}px;height:${getBouquetOuterPetalHeight(f.headSize)}px;background:radial-gradient(ellipse at 50% 28%,${f.color},${f.color}d1 60%,${f.color}a6);transform:translate(-50%,-96%) rotate(${angle}deg);box-shadow:inset 0 -7px 12px ${f.color}66,0 0 10px ${f.color}40"></div>`,
         )
         .join("");
-      return `<div class="flower" data-delay="${300 + i * 200}" style="left:${f.x}px;top:${f.y}px;width:${f.size}px;height:${f.size}px">
-  ${petalsHTML}
-  <div class="flower-center" style="width:${f.size * 0.22}px;height:${f.size * 0.22}px"></div>
+      const innerPetalsHTML = Array.from(BOUQUET_PETAL_ANGLES)
+        .map(
+          (angle) =>
+            `<div class="flower-petal inner" style="z-index:30;width:${getBouquetInnerPetalWidth(f.headSize)}px;height:${getBouquetInnerPetalHeight(f.headSize)}px;background:radial-gradient(ellipse at 50% 32%,rgba(255,255,255,0.72),rgba(255,255,255,0.16));transform:translate(-50%,-90%) rotate(${angle + 30}deg)"></div>`,
+        )
+        .join("");
+      const leafHTML = f.leafSide
+        ? `<div class="leaf ${f.leafSide}" data-delay="${f.delayMs + 300}" style="bottom:${Math.round(f.stemH * 0.42)}px;${f.leafSide === "left" ? `right:${stemWidth + 4}px` : `left:${stemWidth + 4}px`};width:${leafWidth}px;height:${leafHeight}px;--r:${f.leafSide === "left" ? "-20deg" : "20deg"}"></div>`
+        : "";
+      return `<div class="stem-unit" style="height:${f.stemH}px;transform:translateX(${f.xOffset}px) rotate(${f.angle}deg);z-index:${f.zIndex}">
+  <div class="stem" data-delay="${f.delayMs}" style="width:${stemWidth}px;height:${f.stemH}px"></div>
+  ${leafHTML}
+  <div class="flower" data-delay="${f.delayMs + 250}" style="z-index:20;width:${f.headSize}px;height:${f.headSize}px;top:${Math.round(getBouquetHeadTop(f.headSize))}px;--counter-rotate:${-f.angle}deg">
+    <div class="flower-calyx" style="bottom:${Math.round(f.headSize * 0.18)}px;width:${getBouquetCalyxWidth(f.headSize)}px;height:${getBouquetCalyxHeight(f.headSize)}px"></div>
+    ${petalsHTML}
+    ${innerPetalsHTML}
+    <div class="flower-center" style="z-index:40;width:${f.headSize * 0.22}px;height:${f.headSize * 0.22}px"></div>
+  </div>
 </div>`;
     })
     .join("\n");
+
+  const wrapHTML = `
+    <div class="wrap">
+      <svg width="228" height="138" viewBox="0 0 228 138" fill="none">
+        <path d="M44 0 H184 L228 138 H0 Z" fill="url(#wGrad)" />
+        <path d="M44 0 H94 L70 138 H0 Z" fill="rgba(255,255,255,0.12)" />
+        <path d="M134 0 H184 L228 138 H158 Z" fill="rgba(255,255,255,0.08)" />
+        <path d="M110 0 Q100 72 110 138" stroke="rgba(255,255,255,0.12)" stroke-width="1.6" fill="none" />
+        <path d="M118 0 Q132 68 120 138" stroke="rgba(255,255,255,0.1)" stroke-width="1.2" fill="none" />
+        <defs>
+          <linearGradient id="wGrad" x1="0" y1="0" x2="228" y2="138" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="${a}dd" />
+            <stop offset="52%" stop-color="${s}" />
+            <stop offset="100%" stop-color="${p}dd" />
+          </linearGradient>
+        </defs>
+      </svg>
+      <div class="wrap-bow">
+        <div class="wrap-bow-inner">
+          <div class="wrap-loop left"></div>
+          <div class="wrap-knot"></div>
+          <div class="wrap-loop right"></div>
+        </div>
+      </div>
+      <div class="wrap-ribbons">
+        <div class="wrap-ribbon left"></div>
+        <div class="wrap-ribbon right"></div>
+      </div>
+    </div>`;
 
   const petalsHTML = Array.from({ length: 12 })
     .map((_, i) => {
@@ -134,33 +252,49 @@ h1{font-size:28px;font-weight:700;color:${p};text-shadow:0 2px 12px ${p}22}
   ${petalsHTML}
   ${firefliesHTML}
   <div class="opening" id="opening">
-    <div class="gift-icon">🎁</div>
-    <h1>${gift.recipientName ? `${gift.recipientName} ơi, bạn có một món quà!` : "Bạn có một món quà!"}</h1>
-    <p class="subtitle">Một bó hoa đặc biệt đang chờ bạn khám phá</p>
-    <button class="btn" onclick="showBouquet()">✨ Mở quà thôi!</button>
+    <div class="gift-icon">💐</div>
+    <h1>${gift.recipientName ? `${gift.recipientName} ơi,` : "Xin chào,"}</h1>
+    <p class="subtitle">Một bó hoa đặc biệt đang chờ bạn</p>
+    <button class="btn" onclick="showBouquet()">✨ Mở bó hoa</button>
   </div>
   <div class="bouquet-scene hidden" id="bouquetScene">
+    <h2 class="bouquet-title">Happy Women&apos;s Day 🌸</h2>
     <div class="bouquet">
+      <div class="bouquet-glow"></div>
       ${flowersHTML}
-      <div class="stem" data-delay="100" style="left:136px;height:140px"></div>
-      <div class="stem" data-delay="100" style="left:76px;height:120px"></div>
-      <div class="stem" data-delay="100" style="left:196px;height:120px"></div>
-      <div class="leaf left" style="left:110px;top:220px;--r:-20deg"></div>
-      <div class="leaf right" style="left:150px;top:240px;--r:20deg"></div>
-      <div class="leaf left" style="left:60px;top:210px;--r:-20deg"></div>
-      <div class="leaf right" style="left:190px;top:220px;--r:20deg"></div>
-      <div class="wrap"></div>
+      ${wrapHTML}
     </div>
     ${imagesHTML}
     <button class="btn" id="msgBtn" style="opacity:0;transition:opacity 0.5s" onclick="showMessage()">💌 Xem lời chúc</button>
   </div>
   <div class="message-scene hidden" id="messageScene">
-    <div class="msg-card" id="msgCard">
-      <div class="msg-tape tl"></div>
-      <div class="msg-tape br"></div>
-      ${gift.recipientName ? `<p class="msg-to">Gửi ${gift.recipientName} thương mến,</p>` : ""}
-      <p class="msg-text">${gift.message.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
-      ${gift.senderName ? `<p class="msg-from">${gift.senderName} 💕</p>` : ""}
+    <div class="msg-emojis" aria-hidden="true">
+      <span class="msg-emoji">🌷</span>
+      <span class="msg-emoji">🌸</span>
+      <span class="msg-emoji">💐</span>
+      <span class="msg-emoji">🌸</span>
+      <span class="msg-emoji">🌷</span>
+    </div>
+    <div class="msg-shell" id="msgShell">
+      <div class="msg-shell-border"></div>
+      <div class="msg-card">
+        <div class="msg-tape tl"></div>
+        <div class="msg-tape br"></div>
+        <div class="msg-divider top">
+          <div class="msg-divider-line left"></div>
+          <span class="msg-divider-icon">🌸</span>
+          <div class="msg-divider-line right"></div>
+        </div>
+        ${gift.recipientName ? `<p class="msg-to">Gửi ${escapedRecipientName} thương mến,</p>` : ""}
+        <div class="msg-text">${escapedMessage}</div>
+        ${messageImagesHTML}
+        ${gift.senderName ? `<p class="msg-from">Với yêu thương, ${escapedSenderName} 💕</p>` : ""}
+        <div class="msg-divider bottom">
+          <div class="msg-divider-line left"></div>
+          <span class="msg-divider-icon">✿</span>
+          <div class="msg-divider-line right"></div>
+        </div>
+      </div>
     </div>
     <button class="back-link" onclick="showBouquet()">← Xem lại bó hoa</button>
   </div>
@@ -170,11 +304,12 @@ h1{font-size:28px;font-weight:700;color:${p};text-shadow:0 2px 12px ${p}22}
 function showBouquet(){
   document.getElementById('opening').classList.add('hidden');
   document.getElementById('messageScene').classList.add('hidden');
+  var msgShell=document.getElementById('msgShell'); if(msgShell) msgShell.classList.remove('show');
   var bs=document.getElementById('bouquetScene');
   bs.classList.remove('hidden');
   bs.querySelectorAll('.stem').forEach(function(s){setTimeout(function(){s.classList.add('show')},parseInt(s.dataset.delay||0))});
   bs.querySelectorAll('.flower').forEach(function(f){setTimeout(function(){f.classList.add('show')},parseInt(f.dataset.delay||0))});
-  bs.querySelectorAll('.leaf').forEach(function(l){setTimeout(function(){l.classList.add('show')},800)});
+  bs.querySelectorAll('.leaf').forEach(function(l){setTimeout(function(){l.classList.add('show')},parseInt(l.dataset.delay||0))});
   var w=bs.querySelector('.wrap');if(w)setTimeout(function(){w.classList.add('show')},200);
   setTimeout(function(){document.getElementById('msgBtn').style.opacity='1'},1800);
 }
@@ -182,12 +317,21 @@ function showMessage(){
   document.getElementById('bouquetScene').classList.add('hidden');
   var ms=document.getElementById('messageScene');
   ms.classList.remove('hidden');
-  setTimeout(function(){document.getElementById('msgCard').classList.add('show')},100);
+  setTimeout(function(){document.getElementById('msgShell').classList.add('show')},100);
 }`;
 
   const title = gift.recipientName
     ? `Quà tặng dành cho ${gift.recipientName}`
     : "Quà tặng bó hoa";
 
-  return wrapExportHTML(title, css, bodyHTML, js);
+  return wrapExportHTML(title, css, bodyHTML, js, gift);
+}
+
+function escapeExportText(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }

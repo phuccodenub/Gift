@@ -1,5 +1,10 @@
 import { prisma } from "@/lib/db";
 import { resolveTheme } from "@/lib/gift-config";
+import {
+  normalizeFloatingMessages,
+  normalizeGiftAudio,
+  normalizeGiftEffects,
+} from "@/lib/gift-effects";
 import { createGiftSlug } from "@/lib/slug";
 import type { Prisma } from "@prisma/client";
 import type { GiftConfig, GiftData, GiftImageData } from "@/types/gift";
@@ -53,6 +58,9 @@ function toGiftConfig(config: unknown): GiftConfig {
           style: String((raw.animation as Record<string, unknown>).style ?? "fade"),
         }
       : { speed: "normal", style: "fade" },
+    audio: normalizeGiftAudio(raw.audio),
+    floatingMessages: normalizeFloatingMessages(raw.floatingMessages),
+    effects: normalizeGiftEffects(raw.effects),
     decorations: Array.isArray(raw.decorations)
       ? (raw.decorations as { type: string; variant: string }[])
       : [],

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTemplate } from "@/components/templates/registry";
-import { imageToBase64, isAllowedAssetUrl } from "@/lib/storage";
+import { audioToDataUri, imageToBase64, isAllowedAssetUrl } from "@/lib/storage";
 import { findGiftBySlugOrId, toGiftData } from "@/lib/gift-record";
 import { sanitizeGiftForExport } from "@/lib/export-sanitize";
 
@@ -47,17 +47,26 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     const exportGift = {
       ...sanitizedGift,
       images,
+      config: {
+        ...sanitizedGift.config,
+        audio: sanitizedGift.config.audio
+          ? {
+              ...sanitizedGift.config.audio,
+              publicUrl: await audioToDataUri(sanitizedGift.config.audio.publicUrl),
+            }
+          : undefined,
+      },
     };
 
     const html = template.renderExport(exportGift);
     const htmlBytes = new TextEncoder().encode(html).byteLength;
     const MAX_EXPORT_BYTES = 10 * 1024 * 1024;
     if (htmlBytes > MAX_EXPORT_BYTES) {
-      return NextResponse.json(
-        { error: `File export quá lớn (${(htmlBytes / 1024 / 1024).toFixed(1)}MB). Vui lòng giảm số lượng hoặc kích thước ảnh.` },
-        { status: 413 },
-      );
-    }
+        return NextResponse.json(
+          { error: `File export quá lớn (${(htmlBytes / 1024 / 1024).toFixed(1)}MB). Vui lòng giảm số lượng hoặc kích thước ảnh, hoặc dùng file MP3 nhẹ hơn.` },
+          { status: 413 },
+        );
+      }
     const filenameBase = (sanitizedGift.recipientName || giftRecord.id).replace(/[^\w.-]+/g, "_");
 
     return new NextResponse(html, {
@@ -70,7 +79,13 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error("Export error:", error);
     const message = error instanceof Error ? error.message : "Không thể xuất file";
-    const status = message.includes("Asset URL") ? 400 : 500;
+    const status =
+      message.includes("Asset URL") ||
+      message.includes("Local asset") ||
+      message.includes("Only whitelisted") ||
+      message.includes("unsupported content type")
+        ? 400
+        : 500;
     return NextResponse.json(
       { error: message },
       { status },

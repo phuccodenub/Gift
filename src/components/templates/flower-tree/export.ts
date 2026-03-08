@@ -1,6 +1,10 @@
 import type { GiftData } from "@/types/gift";
 import { wrapExportHTML } from "@/lib/export-html";
 import { createDeterministicRandom, randomInRange } from "@/lib/deterministic";
+import {
+  shouldUseLegacyFlowerTreeScene,
+  shouldUseLegacyImageLayout,
+} from "@/lib/gift-effects";
 import { getFlowerTreeScene } from "@/lib/flower-tree-scene";
 
 export function generateFlowerTreeExportHTML(gift: GiftData): string {
@@ -9,6 +13,8 @@ export function generateFlowerTreeExportHTML(gift: GiftData): string {
   const s = colors.secondary;
   const a = colors.accent || colors.primary;
   const bg = colors.background || "#0f172a";
+  const showLegacyImages = shouldUseLegacyImageLayout(gift);
+  const showLegacyScene = shouldUseLegacyFlowerTreeScene(gift);
 
   const css = `
 *{margin:0;padding:0;box-sizing:border-box}
@@ -147,7 +153,7 @@ h1{font-size:28px;font-weight:700;color:#fff;text-shadow:0 0 30px ${p}44}
   );
 
   const photosHTML =
-    sceneImageElements.length > 0
+    showLegacyImages && sceneImageElements.length > 0
       ? sceneImageElements
           .map((element, i) => {
             const image = element.assetRef ? imageByAssetId.get(element.assetRef) : undefined;
@@ -159,20 +165,22 @@ h1{font-size:28px;font-weight:700;color:#fff;text-shadow:0 0 30px ${p}44}
             return `<div class="photo" data-delay="${2000 + i * 150}" style="left:${element.transform.x}px;top:${element.transform.y}px;width:${element.transform.width}px;height:${element.transform.height}px;--rot:${element.transform.rotation ?? 0}deg;border-radius:${shape}"><img src="${src}" alt=""></div>`;
           })
           .join("")
-      : gift.images
+      : showLegacyImages
+        ? gift.images
           .slice(0, 4)
           .map(
             (img, i) =>
               `<div class="photo" data-delay="${2000 + i * 200}" style="left:${photoPos[i].x}px;top:${photoPos[i].y}px"><img src="${img.publicUrl || img.url}" alt=""></div>`,
           )
-          .join("");
+          .join("")
+        : "";
 
-  const textBubblesHTML = sceneTextElements
+  const textBubblesHTML = showLegacyScene ? sceneTextElements
     .map(
       (element, index) =>
         `<div class="text-bubble" data-delay="${1800 + index * 120}" style="left:${element.transform.x}px;top:${element.transform.y}px;width:${element.transform.width}px;min-height:${element.transform.height}px;--rot:${element.transform.rotation ?? 0}deg">${element.content || ""}</div>`,
     )
-    .join("");
+    .join("") : "";
 
   const bodyHTML = `
 <div class="scene">
@@ -243,5 +251,5 @@ function showMsg(){
     ? `Cây hoa dành cho ${gift.recipientName}`
     : "Cây hoa huyền diệu";
 
-  return wrapExportHTML(title, css, bodyHTML, js);
+  return wrapExportHTML(title, css, bodyHTML, js, gift);
 }

@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { GiftViewerProps } from "@/types/gift";
 import { createDeterministicRandom, randomInRange } from "@/lib/deterministic";
+import { shouldUseLegacyImageLayout } from "@/lib/gift-effects";
 
 /* ── Confetti with hearts ── */
 function Confetti({ colors, seed }: { colors: string[]; seed: string }) {
@@ -85,6 +86,7 @@ function Sparkle({ x, y, delay, size }: { x: number; y: number; delay: number; s
 export function EnvelopeGift({ gift, isPreview }: GiftViewerProps) {
   const [stage, setStage] = useState<"closed" | "opening" | "open">(isPreview ? "open" : "closed");
   const { colors } = gift.config;
+  const showLegacyImages = shouldUseLegacyImageLayout(gift);
 
   const sparkles = useMemo(() => {
     const random = createDeterministicRandom(`env:${gift.id ?? gift.templateId}:sparkle`);
@@ -288,7 +290,7 @@ export function EnvelopeGift({ gift, isPreview }: GiftViewerProps) {
                   {gift.message}
                 </motion.div>
 
-                {gift.images.length > 0 && (
+                {showLegacyImages && gift.images.length > 0 && (
                   <motion.div
                     className="mt-7 flex flex-wrap justify-center gap-3"
                     initial={{ opacity: 0, y: 10 }}

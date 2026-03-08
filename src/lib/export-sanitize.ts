@@ -1,4 +1,9 @@
 import type { GiftData, GiftImageData, SceneElement } from "@/types/gift";
+import {
+  normalizeFloatingMessages,
+  normalizeGiftAudio,
+  normalizeGiftEffects,
+} from "@/lib/gift-effects";
 import { resolveTheme } from "./gift-config";
 import { isAllowedAssetUrl } from "./asset-url";
 
@@ -24,7 +29,7 @@ export function escapeAttribute(value: string): string {
     .replace(/>/g, "&gt;");
 }
 
-export function sanitizeImageUrl(value: string): string {
+export function sanitizeAssetUrl(value: string): string {
   const trimmed = value.trim();
   if (!trimmed) {
     return "";
@@ -36,6 +41,10 @@ export function sanitizeImageUrl(value: string): string {
     return "";
   }
   return escapeAttribute(trimmed);
+}
+
+export function sanitizeImageUrl(value: string): string {
+  return sanitizeAssetUrl(value);
 }
 
 function clampNumber(value: unknown, fallback: number, min: number, max: number): number {
@@ -95,6 +104,18 @@ export function sanitizeGiftForExport(gift: GiftData): GiftData {
   const sceneElements = gift.config.scene?.elements?.length
     ? gift.config.scene.elements.map(sanitizeSceneElement)
     : [];
+  const audio = normalizeGiftAudio(gift.config.audio);
+  const audioPublicUrl = audio?.publicUrl ? sanitizeAssetUrl(audio.publicUrl) : "";
+  const sanitizedAudio =
+    audio && audioPublicUrl
+      ? {
+          ...audio,
+          assetId: sanitizeText(audio.assetId),
+          objectPath: sanitizeText(audio.objectPath),
+          mimeType: sanitizeText(audio.mimeType),
+          publicUrl: audioPublicUrl,
+        }
+      : undefined;
 
   return {
     ...gift,
@@ -105,6 +126,9 @@ export function sanitizeGiftForExport(gift: GiftData): GiftData {
       ...gift.config,
       theme,
       colors: theme,
+      audio: sanitizedAudio,
+      floatingMessages: normalizeFloatingMessages(gift.config.floatingMessages).map(sanitizeText),
+      effects: normalizeGiftEffects(gift.config.effects),
       scene: gift.config.scene
         ? {
             ...gift.config.scene,

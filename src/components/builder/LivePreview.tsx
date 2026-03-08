@@ -3,6 +3,7 @@
 import { type ComponentType } from "react";
 import { motion } from "framer-motion";
 import type { GiftData, GiftViewerProps } from "@/types/gift";
+import { GiftExperienceShell } from "@/components/viewer/GiftExperienceShell";
 
 interface LivePreviewProps {
   gift: GiftData;
@@ -27,7 +28,9 @@ export default function LivePreview({ gift, TemplateComponent }: LivePreviewProp
             <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-10 bg-[linear-gradient(180deg,rgba(255,255,255,0.12),transparent)]" />
             <div className="absolute left-1/2 top-1.5 z-20 h-5 w-28 -translate-x-1/2 rounded-b-2xl bg-[rgba(18,8,15,0.86)]" />
             <div className="h-full overflow-y-auto bg-white">
-              <TemplateComponent gift={gift} isPreview />
+              <GiftExperienceShell gift={gift}>
+                <TemplateComponent gift={gift} isPreview />
+              </GiftExperienceShell>
             </div>
             <div className="absolute bottom-2 left-1/2 h-1 w-28 -translate-x-1/2 rounded-full bg-[rgba(255,255,255,0.45)]" />
           </div>

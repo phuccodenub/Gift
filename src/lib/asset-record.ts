@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { deleteImage } from "@/lib/storage";
+import { deleteAsset } from "@/lib/storage";
 import type { Asset } from "@prisma/client";
 
 const DEFAULT_ASSET_TTL_HOURS = 24;
@@ -107,7 +107,7 @@ export async function cleanupExpiredAssets(limit = 50): Promise<{
 
   for (const asset of candidates) {
     try {
-      await deleteImage({
+      await deleteAsset({
         objectPath: asset.objectPath,
         publicUrl: asset.publicUrl,
       });

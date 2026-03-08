@@ -4,6 +4,22 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { GiftViewerProps } from "@/types/gift";
 import { createDeterministicRandom, randomInRange } from "@/lib/deterministic";
+import { shouldUseLegacyImageLayout } from "@/lib/gift-effects";
+import {
+  BOUQUET_LAYOUT,
+  BOUQUET_PETAL_ANGLES,
+  getBouquetCalyxHeight,
+  getBouquetCalyxWidth,
+  getBouquetHeadTop,
+  getBouquetInnerPetalHeight,
+  getBouquetInnerPetalWidth,
+  getBouquetLeafHeight,
+  getBouquetLeafWidth,
+  getBouquetOuterPetalHeight,
+  getBouquetOuterPetalWidth,
+  getBouquetStemSpecs,
+  getBouquetStemWidth,
+} from "./scene";
 
 type Stage = "opening" | "bouquet" | "message";
 
@@ -64,61 +80,132 @@ function MountainBg({ color }: { color: string }) {
 
 /* ── flower head (CSS petals) ── */
 function FlowerHead({ size, color }: { size: number; color: string }) {
-  const pw = size * 0.35;
-  const ph = size * 0.6;
+  const outerPetalW = getBouquetOuterPetalWidth(size);
+  const outerPetalH = getBouquetOuterPetalHeight(size);
+  const innerPetalW = getBouquetInnerPetalWidth(size);
+  const innerPetalH = getBouquetInnerPetalHeight(size);
+  const calyxWidth = getBouquetCalyxWidth(size);
+  const calyxHeight = getBouquetCalyxHeight(size);
+
   return (
     <div className="relative" style={{ width: size, height: size }}>
-      {[0, 72, 144, 216, 288].map((deg, i) => (
+      <div
+        className="absolute left-1/2 z-10 -translate-x-1/2 rounded-[50%_50%_42%_42%/74%_74%_30%_30%]"
+        style={{
+          bottom: size * 0.18,
+          width: calyxWidth,
+          height: calyxHeight,
+          background: "linear-gradient(180deg, #16a34a, #22c55e)",
+          boxShadow: "0 0 8px rgba(34,197,94,0.28)",
+        }}
+      />
+      <div
+        className="pointer-events-none absolute left-1/2 top-1/2 z-0 rounded-full"
+        style={{
+          width: size * 0.74,
+          height: size * 0.74,
+          transform: "translate(-50%, -50%)",
+          background: `radial-gradient(circle, ${color}2f, transparent 72%)`,
+          filter: "blur(10px)",
+        }}
+      />
+      {BOUQUET_PETAL_ANGLES.map((deg, i) => (
         <div
-          key={i}
-          className="absolute left-1/2 top-1/2 rounded-[50%_50%_50%_50%/60%_60%_40%_40%]"
+          key={`outer-${i}`}
+          className="absolute left-1/2 top-1/2 z-20 rounded-[55%_55%_44%_44%/72%_72%_34%_34%]"
           style={{
-            width: pw, height: ph,
-            background: `radial-gradient(ellipse at 50% 30%, ${color}, ${color}bb)`,
+            width: outerPetalW,
+            height: outerPetalH,
+            background: `radial-gradient(ellipse at 50% 28%, ${color}, ${color}d1 60%, ${color}a6)`,
             transformOrigin: "50% 100%",
-            transform: `translate(-50%, -100%) rotate(${deg}deg)`,
-            boxShadow: `inset 0 -6px 12px ${color}66, 0 0 10px ${color}44`,
-            filter: "saturate(1.3)",
+            transform: `translate(-50%, -96%) rotate(${deg}deg)`,
+            boxShadow: `inset 0 -7px 12px ${color}66, 0 0 10px ${color}40`,
+          }}
+        />
+      ))}
+      {BOUQUET_PETAL_ANGLES.map((deg, i) => (
+        <div
+          key={`inner-${i}`}
+          className="absolute left-1/2 top-1/2 z-30 rounded-[60%_60%_45%_45%/70%_70%_36%_36%]"
+          style={{
+            width: innerPetalW,
+            height: innerPetalH,
+            background: "radial-gradient(ellipse at 50% 32%, rgba(255,255,255,0.72), rgba(255,255,255,0.16))",
+            opacity: 0.55,
+            transformOrigin: "50% 100%",
+            transform: `translate(-50%, -90%) rotate(${deg + 30}deg)`,
           }}
         />
       ))}
       <div
-        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
-        style={{ width: size * 0.24, height: size * 0.24, background: "radial-gradient(circle, #fde68a, #f59e0b)", boxShadow: "0 0 14px #f59e0b88" }}
+        className="absolute left-1/2 top-1/2 z-40 -translate-x-1/2 -translate-y-1/2 rounded-full"
+        style={{
+          width: size * 0.22,
+          height: size * 0.22,
+          background: "radial-gradient(circle, #fff4b2 0%, #fde68a 44%, #f59e0b 100%)",
+          boxShadow: "0 0 14px #f59e0b88",
+        }}
       />
     </div>
   );
 }
 
 /* ── bouquet unit: stem + flower head + leaf as one connected unit ── */
-function BouquetUnit({ angle, stemH, headSize, color, delay, leafSide }: {
-  angle: number; stemH: number; headSize: number; color: string; delay: number; leafSide?: "left" | "right";
+function BouquetUnit({
+  angle,
+  xOffset,
+  stemH,
+  headSize,
+  color,
+  delay,
+  zIndex,
+  leafSide,
+}: {
+  angle: number;
+  xOffset: number;
+  stemH: number;
+  headSize: number;
+  color: string;
+  delay: number;
+  zIndex: number;
+  leafSide?: "left" | "right";
 }) {
+  const stemWidth = getBouquetStemWidth(headSize);
+  const leafWidth = getBouquetLeafWidth(headSize);
+  const leafHeight = getBouquetLeafHeight(headSize);
+
   return (
     <div
       className="absolute bottom-0 left-1/2"
-      style={{ marginLeft: -2, transform: `rotate(${angle}deg)`, transformOrigin: "bottom center" }}
+      style={{
+        zIndex,
+        transform: `translateX(${xOffset}px) rotate(${angle}deg)`,
+        transformOrigin: "bottom center",
+      }}
     >
-      {/* stem grows upward */}
       <motion.div
         style={{
-          width: 5, height: stemH,
+          width: stemWidth,
+          height: stemH,
           background: "linear-gradient(to top, #16a34a, #4ade80)",
-          borderRadius: 3, boxShadow: "0 0 6px #4ade8033",
+          borderRadius: 999,
+          boxShadow: "0 0 6px #4ade8033",
           transformOrigin: "bottom center",
+          position: "relative",
+          zIndex: 1,
         }}
         initial={{ scaleY: 0 }}
         animate={{ scaleY: 1 }}
         transition={{ duration: 0.6, delay, ease: "easeOut" }}
       />
-      {/* leaf on stem */}
       {leafSide && (
         <motion.div
           className="absolute"
           style={{
-            bottom: stemH * 0.4,
-            ...(leafSide === "left" ? { right: 6 } : { left: 6 }),
-            width: 28, height: 14,
+            bottom: stemH * 0.42,
+            ...(leafSide === "left" ? { right: stemWidth + 4 } : { left: stemWidth + 4 }),
+            width: leafWidth,
+            height: leafHeight,
             background: "linear-gradient(135deg, #4ade80, #16a34a)",
             borderRadius: leafSide === "left" ? "80% 0 80% 0" : "0 80% 0 80%",
             transform: `rotate(${leafSide === "left" ? "20deg" : "-20deg"})`,
@@ -129,10 +216,13 @@ function BouquetUnit({ angle, stemH, headSize, color, delay, leafSide }: {
           transition={{ delay: delay + 0.3, type: "spring" }}
         />
       )}
-      {/* flower at tip, counter-rotated to stay upright */}
       <motion.div
         className="absolute left-1/2"
-        style={{ top: -headSize * 0.35, transform: `translateX(-50%) rotate(${-angle}deg)` }}
+        style={{
+          zIndex: 20,
+          top: getBouquetHeadTop(headSize),
+          transform: `translateX(-50%) rotate(${-angle}deg)`,
+        }}
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ delay: delay + 0.25, type: "spring", stiffness: 150 }}
@@ -146,30 +236,31 @@ function BouquetUnit({ angle, stemH, headSize, color, delay, leafSide }: {
 /* ── wrapping paper with ribbon ── */
 function WrapPaper({ colors }: { colors: { primary: string; secondary: string; accent?: string } }) {
   return (
-    <div className="relative" style={{ width: 200, height: 110 }}>
-      <svg width="200" height="110" viewBox="0 0 200 110" fill="none">
-        <path d="M28 0 H172 L200 110 H0 Z" fill="url(#wGrad)" />
-        <path d="M75 0 Q90 55 70 110" stroke="rgba(255,255,255,0.12)" strokeWidth="1.5" fill="none" />
-        <path d="M125 0 Q110 55 130 110" stroke="rgba(255,255,255,0.12)" strokeWidth="1.5" fill="none" />
-        <path d="M28 0 H75 L70 110 H0 Z" fill="rgba(255,255,255,0.06)" />
+    <div className="relative" style={{ width: 228, height: 138 }}>
+      <svg width="228" height="138" viewBox="0 0 228 138" fill="none">
+        <path d="M44 0 H184 L228 138 H0 Z" fill="url(#wGrad)" />
+        <path d="M44 0 H94 L70 138 H0 Z" fill="rgba(255,255,255,0.12)" />
+        <path d="M134 0 H184 L228 138 H158 Z" fill="rgba(255,255,255,0.08)" />
+        <path d="M110 0 Q100 72 110 138" stroke="rgba(255,255,255,0.12)" strokeWidth="1.6" fill="none" />
+        <path d="M118 0 Q132 68 120 138" stroke="rgba(255,255,255,0.1)" strokeWidth="1.2" fill="none" />
         <defs>
-          <linearGradient id="wGrad" x1="0" y1="0" x2="200" y2="110" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor={colors.accent || "#f0d9b5"} />
-            <stop offset="50%" stopColor={colors.secondary} />
-            <stop offset="100%" stopColor={colors.accent || "#dcc49e"} />
+          <linearGradient id="wGrad" x1="0" y1="0" x2="228" y2="138" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor={`${colors.accent || colors.primary}dd`} />
+            <stop offset="52%" stopColor={colors.secondary} />
+            <stop offset="100%" stopColor={`${colors.primary}dd`} />
           </linearGradient>
         </defs>
       </svg>
-      {/* ribbon bow */}
-      <div className="absolute -top-5 left-1/2 -translate-x-1/2 flex items-end gap-0.5">
-        <div style={{ width: 24, height: 14, background: `linear-gradient(135deg, ${colors.primary}, ${colors.primary}cc)`, borderRadius: "50% 50% 10% 50%", transform: "rotate(-30deg)" }} />
-        <div style={{ width: 12, height: 12, background: colors.primary, borderRadius: "50%", boxShadow: `0 0 8px ${colors.primary}44` }} />
-        <div style={{ width: 24, height: 14, background: `linear-gradient(135deg, ${colors.primary}cc, ${colors.primary})`, borderRadius: "50% 50% 50% 10%", transform: "rotate(30deg)" }} />
+      <div className="pointer-events-none absolute inset-x-0 top-[-18px] flex justify-center">
+        <div className="flex items-end gap-1">
+          <div style={{ width: 32, height: 18, background: `linear-gradient(135deg, ${colors.primary}, ${colors.primary}cc)`, borderRadius: "60% 60% 16% 52%", transform: "rotate(-28deg)" }} />
+          <div style={{ width: 14, height: 14, background: colors.primary, borderRadius: "50%", boxShadow: `0 0 8px ${colors.primary}44` }} />
+          <div style={{ width: 32, height: 18, background: `linear-gradient(135deg, ${colors.primary}cc, ${colors.primary})`, borderRadius: "60% 60% 52% 16%", transform: "rotate(28deg)" }} />
+        </div>
       </div>
-      {/* ribbon tails */}
-      <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 flex gap-3">
-        <div style={{ width: 3, height: 24, background: `linear-gradient(180deg, ${colors.primary}88, ${colors.primary}11)`, borderRadius: 2, transform: "rotate(-10deg)" }} />
-        <div style={{ width: 3, height: 20, background: `linear-gradient(180deg, ${colors.primary}88, ${colors.primary}11)`, borderRadius: 2, transform: "rotate(10deg)" }} />
+      <div className="absolute bottom-[-20px] left-1/2 flex -translate-x-1/2 gap-3">
+        <div style={{ width: 4, height: 28, background: `linear-gradient(180deg, ${colors.primary}88, ${colors.primary}14)`, borderRadius: 999, transform: "rotate(-8deg)" }} />
+        <div style={{ width: 4, height: 24, background: `linear-gradient(180deg, ${colors.primary}88, ${colors.primary}14)`, borderRadius: 999, transform: "rotate(10deg)" }} />
       </div>
     </div>
   );
@@ -178,6 +269,7 @@ function WrapPaper({ colors }: { colors: { primary: string; secondary: string; a
 export function BouquetGift({ gift, isPreview }: GiftViewerProps) {
   const [stage, setStage] = useState<Stage>(isPreview ? "bouquet" : "opening");
   const { colors } = gift.config;
+  const showLegacyImages = shouldUseLegacyImageLayout(gift);
 
   const particles = useMemo(() => {
     const random = createDeterministicRandom(`bouquet:${gift.id ?? gift.templateId}:fx`);
@@ -198,24 +290,8 @@ export function BouquetGift({ gift, isPreview }: GiftViewerProps) {
 
   /* bouquet flower arrangement – stems fan out from a shared origin */
   const bouquetFlowers = useMemo(() => {
-    const c = [colors.primary, colors.secondary, colors.accent || colors.primary];
-    return [
-      // center row – tall, big
-      { angle: 0,   stemH: 190, headSize: 68, color: c[0], delay: 0.2, leafSide: "right" as const },
-      { angle: -10, stemH: 175, headSize: 58, color: c[1], delay: 0.28, leafSide: "left" as const },
-      { angle: 10,  stemH: 170, headSize: 58, color: c[2], delay: 0.3, leafSide: "right" as const },
-      // mid row
-      { angle: -22, stemH: 155, headSize: 52, color: c[2], delay: 0.38, leafSide: "left" as const },
-      { angle: 22,  stemH: 150, headSize: 52, color: c[1], delay: 0.4, leafSide: "right" as const },
-      { angle: -6,  stemH: 160, headSize: 54, color: c[0], delay: 0.25, leafSide: "left" as const },
-      { angle: 6,   stemH: 158, headSize: 54, color: c[1], delay: 0.32 },
-      // outer row – wider spread
-      { angle: -35, stemH: 130, headSize: 44, color: c[1], delay: 0.5, leafSide: "left" as const },
-      { angle: 35,  stemH: 125, headSize: 44, color: c[2], delay: 0.52 },
-      { angle: -44, stemH: 110, headSize: 38, color: c[0], delay: 0.58, leafSide: "left" as const },
-      { angle: 44,  stemH: 105, headSize: 38, color: c[2], delay: 0.6, leafSide: "right" as const },
-    ];
-  }, [colors.primary, colors.secondary, colors.accent]);
+    return getBouquetStemSpecs(colors);
+  }, [colors]);
 
   return (
     <div
@@ -327,24 +403,32 @@ export function BouquetGift({ gift, isPreview }: GiftViewerProps) {
             {/* unified bouquet composition – flowers connected to stems */}
             <motion.div
               className="relative"
-              style={{ width: 380, height: 400 }}
+              style={{ width: BOUQUET_LAYOUT.sceneWidth, height: BOUQUET_LAYOUT.sceneHeight }}
               animate={{ y: [0, -5, 0] }}
               transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
             >
               {/* soft glow behind flowers */}
               <div
                 className="pointer-events-none absolute left-1/2 -translate-x-1/2"
-                style={{ top: -30, width: 340, height: 240, borderRadius: "50%", background: `radial-gradient(ellipse, ${colors.primary}1a, transparent)`, filter: "blur(24px)" }}
+                style={{
+                  top: BOUQUET_LAYOUT.glowTop,
+                  width: BOUQUET_LAYOUT.glowWidth,
+                  height: BOUQUET_LAYOUT.glowHeight,
+                  borderRadius: "50%",
+                  background: `radial-gradient(ellipse, ${colors.primary}18, transparent)`,
+                  filter: "blur(28px)",
+                }}
               />
 
-              {/* stems + flowers originating from the top of wrapping paper */}
-              <div className="absolute bottom-[120px] left-1/2" style={{ width: 0, height: 0 }}>
+              <div
+                className="absolute left-1/2"
+                style={{ bottom: BOUQUET_LAYOUT.stemOriginBottom, width: 0, height: 0 }}
+              >
                 {bouquetFlowers.map((f, i) => (
                   <BouquetUnit key={i} {...f} />
                 ))}
               </div>
 
-              {/* wrapping paper at convergence point */}
               <div className="absolute bottom-0 left-1/2 -translate-x-1/2">
                 <motion.div
                   initial={{ scaleY: 0, opacity: 0 }}
@@ -358,7 +442,7 @@ export function BouquetGift({ gift, isPreview }: GiftViewerProps) {
             </motion.div>
 
             {/* photo thumbnails */}
-            {gift.images.length > 0 && (
+            {showLegacyImages && gift.images.length > 0 && (
               <motion.div
                 className="flex gap-3 rounded-full px-4 py-2"
                 style={{ background: "rgba(255,255,255,0.6)", backdropFilter: "blur(8px)", border: `1px solid ${colors.primary}18`, boxShadow: `0 8px 24px ${colors.primary}15` }}
@@ -492,7 +576,7 @@ export function BouquetGift({ gift, isPreview }: GiftViewerProps) {
                 </motion.div>
 
                 {/* inline images */}
-                {gift.images.length > 0 && (
+                {showLegacyImages && gift.images.length > 0 && (
                   <motion.div
                     className="mt-8 flex justify-center gap-3"
                     initial={{ opacity: 0, y: 10 }}

@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
+import { parseFloatingMessagesInput } from "@/lib/gift-effects";
 import { mergeFlowerTreeScene } from "@/lib/flower-tree-scene";
 import { getAllTemplates, getTemplate } from "@/components/templates/registry";
 import { STEPS, type StepKey } from "@/components/builder/StepIndicator";
 import type {
+  GiftAudioConfig,
   GiftConfig,
   GiftData,
   GiftImageData,
@@ -22,6 +24,11 @@ const DEFAULT_CONFIG: GiftConfig = {
   },
   decorations: [],
   animation: { speed: "normal", style: "fade" },
+  floatingMessages: [],
+  effects: {
+    fallingMedia: true,
+    clickBurst: "hearts",
+  },
 };
 
 function applyNestedValue(
@@ -53,9 +60,11 @@ export function useGiftBuilder() {
 
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [message, setMessage] = useState("");
+  const [floatingMessagesInput, setFloatingMessagesInput] = useState("");
   const [senderName, setSenderName] = useState("");
   const [recipientName, setRecipientName] = useState("");
   const [images, setImages] = useState<GiftImageData[]>([]);
+  const [audioTrack, setAudioTrack] = useState<GiftAudioConfig | undefined>();
   const [customValues, setCustomValues] = useState<Record<string, unknown>>({});
   const [sceneElements, setSceneElements] = useState<SceneElement[]>([]);
 
@@ -78,15 +87,21 @@ export function useGiftBuilder() {
       ...resolved,
       theme: resolved.theme ?? resolved.colors,
       colors: resolved.colors ?? DEFAULT_CONFIG.colors,
+      audio: audioTrack,
+      floatingMessages: parseFloatingMessagesInput(floatingMessagesInput),
+      effects: {
+        fallingMedia: resolved.effects?.fallingMedia ?? true,
+        clickBurst: resolved.effects?.clickBurst ?? "hearts",
+      },
     };
 
     // Embed scene elements if the template uses scene editor
-    if (sceneElements.length > 0) {
+    if (sceneElements.length > 0 && withTheme.effects?.fallingMedia !== true) {
       withTheme.scene = { elements: sceneElements, parallax: true };
     }
 
     return withTheme;
-  }, [selectedTemplate, customValues, sceneElements]);
+  }, [selectedTemplate, customValues, sceneElements, audioTrack, floatingMessagesInput]);
 
   const giftData: GiftData = useMemo(
     () => ({
@@ -150,7 +165,9 @@ export function useGiftBuilder() {
       // Scene elements are already embedded in currentConfig via sceneElements state.
       // Fall back to mergeFlowerTreeScene only when no explicit scene exists.
       const configForSave =
-        selectedTemplateId === "flower-tree" && !currentConfig.scene?.elements?.length
+        selectedTemplateId === "flower-tree" &&
+        !currentConfig.scene?.elements?.length &&
+        currentConfig.effects?.fallingMedia !== true
           ? mergeFlowerTreeScene(currentConfig, images)
           : currentConfig;
 
@@ -203,18 +220,22 @@ export function useGiftBuilder() {
     selectedTemplateId,
     selectedTemplate,
     message,
+    floatingMessagesInput,
     senderName,
     recipientName,
     images,
+    audioTrack,
     customValues,
     currentConfig,
     giftData,
     currentStep,
     canProceed,
     setMessage,
+    setFloatingMessagesInput,
     setSenderName,
     setRecipientName,
     setImages,
+    setAudioTrack,
     sceneElements,
     setSceneElements,
     handleSelectTemplate,

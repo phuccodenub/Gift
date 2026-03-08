@@ -1,69 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getTemplate } from "@/components/templates/registry";
+import {
+  assertGiftAssetAssignments,
+  assertUniqueRequestedAssetIds,
+  buildImageCreateData,
+  buildStoredGiftConfig,
+  getConfigAssetIds,
+  validateAttachableAssets,
+} from "@/lib/gift-assets";
 import { createUniqueGiftSlug, toGiftData } from "@/lib/gift-record";
 import { getShareUrl } from "@/lib/utils";
 import { createGiftRequestSchema } from "@/lib/validation";
 import { ASSET_STATUSES } from "@/lib/asset-record";
 import type { GiftResponse } from "@/types/gift";
-import type { Asset, Prisma } from "@prisma/client";
-
-type CreateGiftImageInput = {
-  assetId: string;
-  publicUrl: string;
-  objectPath: string;
-  label?: string | null;
-  position?: Prisma.InputJsonValue;
-};
-
-function buildImageCreateData(
-  requestedImages: Array<{
-    assetId: string;
-    label?: string;
-    position?: {
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-      rotation?: number;
-    };
-  }>,
-  assetMap: Map<string, Asset>,
-): CreateGiftImageInput[] {
-  return requestedImages.map((image) => {
-    const asset = assetMap.get(image.assetId);
-    if (!asset) {
-      throw new Error(`Asset ${image.assetId} không tồn tại.`);
-    }
-    return {
-      assetId: asset.id,
-      publicUrl: asset.publicUrl,
-      objectPath: asset.objectPath,
-      label: image.label ?? null,
-      position: (image.position as Prisma.InputJsonValue) ?? undefined,
-    };
-  });
-}
-
-function validateAttachableAssets(assets: Asset[]): Map<string, Asset> {
-  const now = Date.now();
-  const assetMap = new Map<string, Asset>();
-
-  for (const asset of assets) {
-    if (asset.status !== ASSET_STATUSES.uploaded) {
-      throw new Error(`Asset ${asset.id} không ở trạng thái UPLOADED.`);
-    }
-    if (asset.giftId) {
-      throw new Error(`Asset ${asset.id} đã được gắn vào gift khác.`);
-    }
-    if (asset.expiresAt && asset.expiresAt.getTime() <= now) {
-      throw new Error(`Asset ${asset.id} đã hết hạn, vui lòng upload lại.`);
-    }
-    assetMap.set(asset.id, asset);
-  }
-
-  return assetMap;
-}
+import type { Prisma } from "@prisma/client";
 
 export async function POST(request: NextRequest) {
   try {
@@ -91,15 +42,12 @@ export async function POST(request: NextRequest) {
     });
 
     const requestedImages = payload.images ?? [];
-    const requestedAssetIds = Array.from(
-      new Set(requestedImages.map((image) => image.assetId)),
-    );
-    if (requestedAssetIds.length !== requestedImages.length) {
-      return NextResponse.json(
-        { error: "Mỗi ảnh chỉ được sử dụng 1 lần trong gift." },
-        { status: 400 },
-      );
-    }
+    const requestedAudioAssetIds = getConfigAssetIds(payload.config);
+    const requestedAssetIds = [
+      ...requestedImages.map((image) => image.assetId),
+      ...requestedAudioAssetIds,
+    ];
+    assertUniqueRequestedAssetIds(requestedAssetIds);
     const assets = requestedAssetIds.length
       ? await prisma.asset.findMany({
           where: {
@@ -117,14 +65,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    assertGiftAssetAssignments({
+      assetMap,
+      imageAssetIds: requestedImages.map((image) => image.assetId),
+      audioAssetIds: requestedAudioAssetIds,
+    });
+
     const imagesToCreate = buildImageCreateData(requestedImages, assetMap);
+    const configForSave = buildStoredGiftConfig(payload.config, assetMap);
 
     const gift = await prisma.$transaction(async (tx) => {
       const created = await tx.gift.create({
         data: {
           slug,
           templateId: payload.templateId,
-          config: payload.config as Prisma.InputJsonValue,
+          config: configForSave as unknown as Prisma.InputJsonValue,
           message: payload.message,
           senderName: payload.senderName ?? null,
           recipientName: payload.recipientName ?? null,
@@ -138,9 +93,11 @@ export async function POST(request: NextRequest) {
       });
 
       if (requestedAssetIds.length) {
-        await tx.asset.updateMany({
+        const attachResult = await tx.asset.updateMany({
           where: {
             id: { in: requestedAssetIds },
+            status: ASSET_STATUSES.uploaded,
+            giftId: null,
           },
           data: {
             status: ASSET_STATUSES.attached,
@@ -148,6 +105,12 @@ export async function POST(request: NextRequest) {
             expiresAt: null,
           },
         });
+
+        if (attachResult.count !== requestedAssetIds.length) {
+          throw new Error(
+            "Một hoặc nhiều asset vừa được sử dụng ở gift khác. Vui lòng upload lại.",
+          );
+        }
       }
 
       return created;
@@ -170,9 +133,13 @@ export async function POST(request: NextRequest) {
     const clientError =
       message.includes("Asset") ||
       message.includes("Template") ||
+      message.includes("khả dụng") ||
       message.includes("hết hạn") ||
       message.includes("không tồn tại") ||
-      message.includes("sử dụng 1 lần");
+      message.includes("sử dụng 1 lần") ||
+      message.includes("ảnh hợp lệ") ||
+      message.includes("MP3 hợp lệ") ||
+      message.includes("cùng 1 asset");
     const status = clientError ? 400 : 500;
     return NextResponse.json(
       { error: message },

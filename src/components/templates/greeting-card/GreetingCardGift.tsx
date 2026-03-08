@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { GiftViewerProps } from "@/types/gift";
 import { createDeterministicRandom, randomInRange } from "@/lib/deterministic";
+import { shouldUseLegacyImageLayout } from "@/lib/gift-effects";
 
 /* ── Floating hearts ── */
 function FloatingHeart({ x, delay, size, color, dur }: { x: number; delay: number; size: number; color: string; dur: number }) {
@@ -32,22 +33,35 @@ function Sparkle({ x, y, delay, size }: { x: number; y: number; delay: number; s
 }
 
 /* ── Confetti burst when card opens ── */
-function ConfettiBurst({ colors: c }: { colors: string[] }) {
+function ConfettiBurst({ colors: c, seed }: { colors: string[]; seed: string }) {
+  const pieces = useMemo(() => {
+    const random = createDeterministicRandom(`${seed}:confetti-burst`);
+    return Array.from({ length: 18 }).map((_, i) => {
+      const angle = (i / 18) * 360;
+      const rad = (angle * Math.PI) / 180;
+      const dist = 120 + randomInRange(random, 0, 80);
+      const size = 6 + randomInRange(random, 0, 6);
+      return {
+        id: i,
+        dist,
+        size,
+        angle,
+        rad,
+        color: c[i % c.length],
+      };
+    });
+  }, [c, seed]);
+
   return (
     <>
-      {Array.from({ length: 18 }).map((_, i) => {
-        const angle = (i / 18) * 360;
-        const rad = (angle * Math.PI) / 180;
-        const dist = 120 + Math.random() * 80;
-        const size = 6 + Math.random() * 6;
-        const color = c[i % c.length];
+      {pieces.map((piece) => {
         return (
           <motion.div
-            key={i}
+            key={piece.id}
             className="absolute left-1/2 top-1/2"
-            style={{ width: size, height: size * 1.5, background: color, borderRadius: 2 }}
+            style={{ width: piece.size, height: piece.size * 1.5, background: piece.color, borderRadius: 2 }}
             initial={{ x: 0, y: 0, opacity: 1, rotate: 0 }}
-            animate={{ x: Math.cos(rad) * dist, y: Math.sin(rad) * dist, opacity: 0, rotate: angle + 180 }}
+            animate={{ x: Math.cos(piece.rad) * piece.dist, y: Math.sin(piece.rad) * piece.dist, opacity: 0, rotate: piece.angle + 180 }}
             transition={{ duration: 0.9, ease: "easeOut" }}
           />
         );
@@ -60,6 +74,7 @@ export function GreetingCardGift({ gift, isPreview }: GiftViewerProps) {
   const [isOpen, setIsOpen] = useState(isPreview ?? false);
   const [showConfetti, setShowConfetti] = useState(false);
   const { colors } = gift.config;
+  const showLegacyImages = shouldUseLegacyImageLayout(gift);
 
   const ambient = useMemo(() => {
     const random = createDeterministicRandom(`greeting:${gift.id ?? gift.templateId}:ambient`);
@@ -109,7 +124,10 @@ export function GreetingCardGift({ gift, isPreview }: GiftViewerProps) {
               initial={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
-              <ConfettiBurst colors={[colors.primary, colors.secondary, colors.accent || "#fde68a", "#f472b6", "#a78bfa"]} />
+              <ConfettiBurst
+                seed={gift.id ?? gift.templateId}
+                colors={[colors.primary, colors.secondary, colors.accent || "#fde68a", "#f472b6", "#a78bfa"]}
+              />
             </motion.div>
           )}
         </AnimatePresence>
@@ -234,7 +252,7 @@ export function GreetingCardGift({ gift, isPreview }: GiftViewerProps) {
                 ✨ Chạm để mở thiệp ✨
               </motion.p>
 
-              {gift.images.length > 0 && (
+              {showLegacyImages && gift.images.length > 0 && (
                 <motion.div
                   className="mt-2 flex gap-2 rounded-full px-4 py-2"
                   style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)" }}
