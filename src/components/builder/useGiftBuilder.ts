@@ -67,6 +67,8 @@ export function useGiftBuilder() {
   const [audioTrack, setAudioTrack] = useState<GiftAudioConfig | undefined>();
   const [customValues, setCustomValues] = useState<Record<string, unknown>>({});
   const [sceneElements, setSceneElements] = useState<SceneElement[]>([]);
+  const [letterHeading, setLetterHeading] = useState("");
+  const [letterSignature, setLetterSignature] = useState("");
 
   const selectedTemplate: GiftTemplate | undefined = useMemo(
     () => (selectedTemplateId ? getTemplate(selectedTemplateId) : undefined),
@@ -93,6 +95,8 @@ export function useGiftBuilder() {
         fallingMedia: resolved.effects?.fallingMedia ?? true,
         clickBurst: resolved.effects?.clickBurst ?? "hearts",
       },
+      letterHeading: letterHeading || undefined,
+      letterSignature: letterSignature || undefined,
     };
 
     // Embed scene elements if the template uses scene editor
@@ -101,7 +105,7 @@ export function useGiftBuilder() {
     }
 
     return withTheme;
-  }, [selectedTemplate, customValues, sceneElements, audioTrack, floatingMessagesInput]);
+  }, [selectedTemplate, customValues, sceneElements, audioTrack, floatingMessagesInput, letterHeading, letterSignature]);
 
   const giftData: GiftData = useMemo(
     () => ({
@@ -238,6 +242,10 @@ export function useGiftBuilder() {
     setAudioTrack,
     sceneElements,
     setSceneElements,
+    letterHeading,
+    setLetterHeading,
+    letterSignature,
+    setLetterSignature,
     handleSelectTemplate,
     handleCustomFieldChange,
     goNext,

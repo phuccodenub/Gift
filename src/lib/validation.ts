@@ -77,6 +77,8 @@ const giftConfigSchema = z.object({
       clickBurst: z.literal("hearts").optional(),
     })
     .optional(),
+  letterHeading: safeText(120).optional(),
+  letterSignature: safeText(120).optional(),
   scene: z
     .object({
       elements: z

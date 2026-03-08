@@ -9,6 +9,8 @@ export interface GiftConfig {
   audio?: GiftAudioConfig;
   floatingMessages?: string[];
   effects?: GiftEffectsConfig;
+  letterHeading?: string;
+  letterSignature?: string;
   // Legacy keys are kept for backward compatibility during migration.
   colors: {
     primary: string;

@@ -75,6 +75,10 @@ export default function CreatePage() {
     setImages,
     setAudioTrack,
     setSceneElements,
+    letterHeading,
+    setLetterHeading,
+    letterSignature,
+    setLetterSignature,
     handleSelectTemplate,
     handleCustomFieldChange,
     goNext,
@@ -163,6 +167,10 @@ export default function CreatePage() {
                       recipientName={recipientName}
                       onSenderChange={setSenderName}
                       onRecipientChange={setRecipientName}
+                      letterHeading={letterHeading}
+                      letterSignature={letterSignature}
+                      onLetterHeadingChange={setLetterHeading}
+                      onLetterSignatureChange={setLetterSignature}
                     />
 
                     <ImageUploader images={images} onImagesChange={setImages} />

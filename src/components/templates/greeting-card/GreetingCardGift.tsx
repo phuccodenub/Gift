@@ -157,7 +157,7 @@ export function GreetingCardGift({ gift, isPreview }: GiftViewerProps) {
               <div className="mb-3 flex justify-center text-2xl opacity-40" style={{ color: colors.primary }}>✿ ── ✿ ── ✿</div>
 
               <div className="flex-1">
-                {gift.recipientName && (
+                {(gift.config.letterHeading || gift.recipientName) && (
                   <motion.p
                     className="mb-3 text-base font-medium italic"
                     style={{ color: colors.primary, fontFamily: "var(--font-display)" }}
@@ -165,7 +165,7 @@ export function GreetingCardGift({ gift, isPreview }: GiftViewerProps) {
                     animate={{ opacity: isOpen ? 1 : 0 }}
                     transition={{ delay: 0.5 }}
                   >
-                    Gửi {gift.recipientName} thương mến,
+                    {gift.config.letterHeading || `Gửi ${gift.recipientName} thương mến,`}
                   </motion.p>
                 )}
                 <motion.p
@@ -178,7 +178,7 @@ export function GreetingCardGift({ gift, isPreview }: GiftViewerProps) {
                   {gift.message}
                 </motion.p>
               </div>
-              {gift.senderName && (
+              {(gift.config.letterSignature || gift.senderName) && (
                 <motion.p
                   className="mt-4 text-right text-base font-medium italic"
                   style={{ color: colors.primary }}
@@ -186,7 +186,7 @@ export function GreetingCardGift({ gift, isPreview }: GiftViewerProps) {
                   animate={{ opacity: isOpen ? 1 : 0 }}
                   transition={{ delay: 0.7 }}
                 >
-                  Yêu thương, {gift.senderName} 💕
+                  {gift.config.letterSignature || `Yêu thương, ${gift.senderName} 💕`}
                 </motion.p>
               )}
 

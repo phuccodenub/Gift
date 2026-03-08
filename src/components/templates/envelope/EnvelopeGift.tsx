@@ -268,7 +268,7 @@ export function EnvelopeGift({ gift, isPreview }: GiftViewerProps) {
                   <div style={{ width: 48, height: 1.5, background: `linear-gradient(90deg, ${colors.primary}44, transparent)`, borderRadius: 1 }} />
                 </motion.div>
 
-                {gift.recipientName && (
+                {(gift.config.letterHeading || gift.recipientName) && (
                   <motion.p
                     className="mb-5 text-center text-xl font-semibold italic md:text-2xl"
                     style={{ color: colors.secondary, fontFamily: "var(--font-display)" }}
@@ -276,7 +276,7 @@ export function EnvelopeGift({ gift, isPreview }: GiftViewerProps) {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.4 }}
                   >
-                    Thân gửi {gift.recipientName},
+                    {gift.config.letterHeading || `Thân gửi ${gift.recipientName},`}
                   </motion.p>
                 )}
 
@@ -313,7 +313,7 @@ export function EnvelopeGift({ gift, isPreview }: GiftViewerProps) {
                   </motion.div>
                 )}
 
-                {gift.senderName && (
+                {(gift.config.letterSignature || gift.senderName) && (
                   <motion.p
                     className="mt-8 text-right text-lg font-semibold italic md:text-xl"
                     style={{ color: colors.primary, fontFamily: "var(--font-display)" }}
@@ -321,7 +321,7 @@ export function EnvelopeGift({ gift, isPreview }: GiftViewerProps) {
                     animate={{ opacity: 1 }}
                     transition={{ delay: 1 }}
                   >
-                    Với tất cả yêu thương, {gift.senderName} 💕
+                    {gift.config.letterSignature || `Với tất cả yêu thương, ${gift.senderName} 💕`}
                   </motion.p>
                 )}
 

@@ -415,7 +415,7 @@ export function FlowerTreeGift({ gift, isPreview }: GiftViewerProps) {
                 <div className="absolute -left-1 -top-1 size-8 rotate-[-15deg] rounded-sm" style={{ background: `${colors.primary}25`, border: `1px dashed ${colors.primary}55` }} />
                 <div className="absolute -bottom-1 -right-1 size-8 rotate-[15deg] rounded-sm" style={{ background: `${colors.primary}25`, border: `1px dashed ${colors.primary}55` }} />
 
-                {gift.recipientName && (
+                {(gift.config.letterHeading || gift.recipientName) && (
                   <motion.p
                     className="mb-3 text-base font-medium italic"
                     style={{ color: colors.primary, fontFamily: "var(--font-display)" }}
@@ -423,7 +423,7 @@ export function FlowerTreeGift({ gift, isPreview }: GiftViewerProps) {
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.3 }}
                   >
-                    Gửi {gift.recipientName} thương mến,
+                    {gift.config.letterHeading || `Gửi ${gift.recipientName} thương mến,`}
                   </motion.p>
                 )}
                 <motion.p
@@ -435,7 +435,7 @@ export function FlowerTreeGift({ gift, isPreview }: GiftViewerProps) {
                 >
                   {gift.message}
                 </motion.p>
-                {gift.senderName && (
+                {(gift.config.letterSignature || gift.senderName) && (
                   <motion.p
                     className="mt-8 text-right text-base font-medium italic"
                     style={{ color: colors.primary }}
@@ -443,7 +443,7 @@ export function FlowerTreeGift({ gift, isPreview }: GiftViewerProps) {
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.7 }}
                   >
-                    {gift.senderName} 💕
+                    {gift.config.letterSignature || `${gift.senderName} 💕`}
                   </motion.p>
                 )}
               </div>
